@@ -40,6 +40,8 @@ func main() {
 	router.PUT("/expenses/:id", updateExpense)
 	router.DELETE("/expenses/:id", deleteExpense)
 
+	router.GET("/report", generateReport) // New route for report generation
+
 	router.Run(":" + port)
 }
 
@@ -145,4 +147,22 @@ func deleteExpense(c *gin.Context) {
 		}
 	}
 	c.JSON(404, gin.H{"message": "expense not found"})
+}
+
+func generateReport(c *gin.Context) {
+	var totalIncome, totalExpense, averageIncome, averageExpense float64
+	if len(incomes) > 0 {
+		for _, income := range incomes {
+			totalIncome += income.Amount
+		}
+		averageIncome = totalIncome / float64(len(incomes))
+	}
+	if len(expenses) > 0 {
+		for _, expense := range expenses {
+			totalExpense += expense.Amount
+		}
+		averageExpense = totalExpense / float64(len(expenses))
+	}
+	balance := totalIncome - totalExpense
+	c.JSON(200, gin.H{"total_income": totalIncome, "average_income": averageIncome, "total_expense": totalExpense, "average_expense": averageExpense, "balance": balance})
 }
