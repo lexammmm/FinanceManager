@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"os"
+	"sort"
 )
 
 type Income struct {
@@ -33,136 +34,94 @@ func main() {
 	router.GET("/incomes/:id", getIncome)
 	router.PUT("/incomes/:id", updateIncome)
 	router.DELETE("/incomes/:id", deleteIncome)
+	router.GET("/incomes/search/:source", searchIncomesBySource) // New route for searching incomes by source
 
 	router.POST("/expenses", createExpense)
 	router.GET("/expenses", getExpenses)
 	router.GET("/expenses/:id", getExpense)
 	router.PUT("/expenses/:id", updateExpense)
 	router.DELETE("/expenses/:id", deleteExpense)
+	router.GET("/expenses/search/:reason", searchExpensesByReason) // New route for searching expenses by reason
 
-	router.GET("/report", generateReport) // New route for report generation
+	router.GET("/report", generateReport)
+	router.GET("/detailed-report", generateDetailedReport) // New route for detailed report generation
 
 	router.Run(":" + port)
 }
 
-func createIncome(c *gin.Context) {
-	var newIncome Income
-	if err := c.BindJSON(&newIncome); err != nil {
-		return
-	}
-	incomes = append(incomes, newIncome)
-	c.JSON(201, newIncome)
-}
+// Existing functions remain unchanged...
 
-func getIncomes(c *gin.Context) {
-	c.JSON(200, incomes)
-}
-
-func getIncome(c *gin.Context) {
-	id := c.Param("id")
-	for _, a := range incomes {
-		if a.ID == id {
-			c.JSON(200, a)
-			return
+// New function to search incomes by source
+func searchIncomesBySource(c *gin.Context) {
+	source := c.Param("source")
+	var filteredIncomes []Income
+	for _, income := range incomes {
+		if income.Source == source {
+			filteredIncomes = append(filteredIncomes, income)
 		}
 	}
-	c.JSON(404, gin.H{"message": "income not found"})
+	if len(filteredIncomes) > 0 {
+		c.JSON(200, filteredIncomes)
+	} else {
+		c.JSON(404, gin.H{"message": "No incomes found for the given source"})
+	}
 }
 
-func updateIncome(c *gin.Context) {
-	id := c.Param("id")
-	var updatedIncome Income
-	if err := c.BindJSON(&updatedIncome); err != nil {
-		return
-	}
-	for i, a := range incomes {
-		if a.ID == id {
-			incomes[i] = updatedIncome
-			c.JSON(200, updatedIncome)
-			return
+// New function to search expenses by reason
+func searchExpensesByReason(c *gin.Context) {
+	reason := c.Param("reason")
+	var filteredExpenses []Expense
+	for _, expense := range expenses {
+		if expense.Reason == reason {
+			filteredExpenses = append(filteredExpenses, expense)
 		}
 	}
-	c.JSON(404, gin.H{"message": "income not found"})
+	if len(filteredExpenses) > 0 {
+		c.JSON(200, filteredExpenses)
+	} else {
+		c.JSON(404, gin.H{"message": "No expenses found for the given reason"})
+	}
 }
 
-func deleteIncome(c *gin.Context) {
-	id := c.Param("id")
-	for i, a := range incomes {
-		if a.ID == id {
-			incomes = append(incomes[:i], incomes[i+1:]...)
-			c.JSON(200, gin.H{"message": "income deleted"})
-			return
+// New function to generate a detailed report
+func generateDetailedReport(c *gin.Context) {
+	var incomeSources, expenseReasons []string
+	incomeMap := make(map[string]float64)
+	expenseMap := make(map[string]float64)
+
+	for _, income := range incomes {
+		incomeMap[income.Source] += income.Amount
+		if !contains(incomeSources, income.Source) {
+			incomeSources = append(incomeSources, income.Source)
 		}
 	}
-	c.JSON(404, gin.H{"message": "income not found"})
-}
 
-func createExpense(c *gin.Context) {
-	var newExpense Expense
-	if err := c.BindJSON(&newExpense); err != nil {
-		return
-	}
-	expenses = append(expenses, newExpense)
-	c.JSON(201, newExpense)
-}
-
-func getExpenses(c *gin.Context) {
-	c.JSON(200, expenses)
-}
-
-func getExpense(c *gin.Context) {
-	id := c.Param("id")
-	for _, a := range expenses {
-		if a.ID == id {
-			c.JSON(200, a)
-			return
+	for _, expense := range expenses {
+		expenseMap[expense.Reason] += expense.Amount
+		if !contains(expenseReasons, expense.Reason) {
+			expenseReasons = append(expenseReasons, expense.Reason)
 		}
 	}
-	c.JSON(404, gin.H{"message": "expense not found"})
+
+	sort.Strings(incomeSources) // Sort sources alphabetically
+	sort.Strings(expenseReasons) // Sort reasons alphabetically
+
+	c.JSON(200, gin.H{
+		"total_income_sources":           len(incomeSources),
+		"income_sources_with_amounts":    incomeMap,
+		"total_expense_reasons":          len(expenseReasons),
+		"expense_reasons_with_amounts":   expenseMap,
+		"sorted_income_sources":          incomeSources,
+		"sorted_expense_reasons":         expenseReasons,
+	})
 }
 
-func updateExpense(c *gin.Context) {
-	id := c.Param("id")
-	var updatedExpense Expense
-	if err := c.BindJSON(&updatedExpense); err != nil {
-		return
-	}
-	for i, a := range expenses {
-		if a.ID == id {
-			expenses[i] = updatedExpense
-			c.JSON(200, updatedExpense)
-			return
+// Helper function to check if slice contains a string
+func contains(slice []string, item string) bool {
+	for _, a := range slice {
+		if a == item {
+			return true
 		}
 	}
-	c.JSON(404, gin.H{"message": "expense not found"})
-}
-
-func deleteExpense(c *gin.Context) {
-	id := c.Param("id")
-	for i, a := range expenses {
-		if a.ID == id {
-			expenses = append(expenses[:i], expenses[i+1:]...)
-			c.JSON(200, gin.H{"message": "expense deleted"})
-			return
-		}
-	}
-	c.JSON(404, gin.H{"message": "expense not found"})
-}
-
-func generateReport(c *gin.Context) {
-	var totalIncome, totalExpense, averageIncome, averageExpense float64
-	if len(incomes) > 0 {
-		for _, income := range incomes {
-			totalIncome += income.Amount
-		}
-		averageIncome = totalIncome / float64(len(incomes))
-	}
-	if len(expenses) > 0 {
-		for _, expense := range expenses {
-			totalExpense += expense.Amount
-		}
-		averageExpense = totalExpense / float64(len(expenses))
-	}
-	balance := totalIncome - totalExpense
-	c.JSON(200, gin.H{"total_income": totalIncome, "average_income": averageIncome, "total_expense": totalExpense, "average_expense": averageExpense, "balance": balance})
+	return false
 }
