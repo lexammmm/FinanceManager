@@ -2,10 +2,13 @@ package main
 
 import (
     "encoding/json"
+    "errors"
     "fmt"
+    "io"
     "net/http"
     "os"
     "strconv"
+    "strings"
 )
 
 type Transaction struct {
@@ -27,30 +30,46 @@ func main() {
     }
 
     fmt.Printf("Server running on port %s\n", serverPort)
-    http.ListenAndServe(":"+serverPort, nil)
+    err := http.ListenAndServe(":"+serverPort, nil)
+    if err != nil {
+        fmt.Println("Failed to start server:", err)
+        os.Exit(1)
+    }
 }
 
 func handleTransactions(w http.ResponseWriter, r *http.Request) {
     switch r.Method {
     case http.MethodGet:
-        json.NewEncoder(w).Encode(transactionRecords)
+        w.Header().Set("Content-Type", "application/json")
+        if err := json.NewEncoder(w).Encode(transactionRecords); err != nil {
+            http.Error(w, "Failed to encode transactions", http.StatusInternalServerError)
+        }
     case http.MethodPost:
         var newTransaction Transaction
         if err := json.NewDecoder(r.Body).Decode(&newTransaction); err != nil {
-            http.Error(w, err.Error(), http.StatusBadRequest)
+            if errors.Is(err, io.EOF) {
+                http.Error(w, "Empty request body", http.StatusBadRequest)
+                return
+            }
+            http.Error(w, "Invalid request body", http.StatusBadRequest)
             return
         }
         newTransaction.ID = nextTransactionID
         nextTransactionID++
         transactionRecords = append(transactionRecords, newTransaction)
-        json.NewEncoder(w).Encode(newTransaction)
+
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusCreated)
+        if err := json.NewEncoder(w).Encode(newTransaction); err != nil {
+            http.Error(w, "Failed to encode new transaction", http.StatusInternalServerError)
+        }
     default:
         w.WriteHeader(http.StatusMethodNotAllowed)
     }
 }
 
 func handleTransactionByID(w http.ResponseWriter, r *http.Request) {
-    transactionID, err := strconv.Atoi(r.URL.Path[len("/transactions/"):])
+    transactionID, err := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/transactions/"))
     if err != nil {
         http.Error(w, "Invalid Transaction ID", http.StatusBadRequest)
         return
@@ -60,17 +79,23 @@ func handleTransactionByID(w http.ResponseWriter, r *http.Request) {
         if transaction.ID == transactionID {
             switch r.Method {
             case http.MethodGet:
-                json.NewEncoder(w).Encode(transaction)
+                w.Header().Set("Content-Type", "application/json")
+                if err := json.NewEncoder(w).Encode(transaction); err != nil {
+                    http.Error(w, "Failed to encode transaction", http.StatusInternalServerError)
+                }
                 return
             case http.MethodPut:
                 var updatedTransaction Transaction
                 if err := json.NewDecoder(r.Body).Decode(&updatedTransaction); err != nil {
-                    http.Error(w, err.Error(), http.StatusBadRequest)
+                    http.Error(w, "Invalid request body", http.StatusBadRequest)
                     return
                 }
                 updatedTransaction.ID = transactionID
                 transactionRecords[index] = updatedTransaction
-                json.NewEncoder(w).Encode(updatedTransaction)
+                w.Header().Set("Content-Type", "application/json")
+                if err := json.NewEncoder(w).Encode(updatedTransaction); err != nil {
+                    http.Error(w, "Failed to encode updated transaction", http.StatusInternalServerError)
+                }
                 return
             case http.MethodDelete:
                 transactionRecords = append(transactionRecords[:index], transactionRecords[index+1:]...)
