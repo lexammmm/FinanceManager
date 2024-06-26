@@ -13,10 +13,10 @@ interface IncomeData {
 interface FormStatus {
   isLoading: boolean;
   errorMsg: string;
-  successMsg: string; // New addition for success message
+  successMsg: string;
 }
 
-const categories = ['Salary', 'Investments', 'Other']; // Example categories
+const categories = ['Salary', 'Investments', 'Other'];
 
 const IncomeForm: React.FC = () => {
   const [incomeData, setIncomeData] = useState<IncomeData>({ source: '', amount: 0, date: '', category: '' });
@@ -24,12 +24,18 @@ const IncomeForm: React.FC = () => {
   const dispatch = useDispatch();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setIncomeData({ ...incomeData, [e.target.name]: e.target.name === 'amount' ? parseFloat(e.target.value) || 0 : e.target.value });
+    const { name, value } = e.target;
+    const updatedValue = name === 'amount' ? parseFloat(value) || 0 : value;
+    updateIncomeData(name, updatedValue);
   };
 
-  const validateForm = () => {
+  const updateIncomeData = (key: string, value: string | number) => {
+    setIncomeData({ ...incomeData, [key]: value });
+  };
+
+  const validateForm = (): boolean => {
     if (incomeData.amount <= 0) {
-      setFormStatus({ ...formStatus, errorMsg: 'Please enter a valid amount.' });
+      updateFormStatus('Please enter a valid amount.', '', false);
       return false;
     }
     return true;
@@ -37,20 +43,26 @@ const IncomeForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if(!validateForm()) return; // Form validation before proceeding
+    if(!validateForm()) return;
     
-    setFormStatus({ ...formStatus, isLoading: true, errorMsg: '', successMsg: '' }); // Reset and show loading
+    updateFormStatus('', '', true); // Reset status with loading true
     dispatch(addIncome(incomeData));
-
+    
     try {
-      await axios.post(`${process.env.REACT_APP_BACKEND_URL}/addIncome`, incomeData);
-      setFormStatus({ ...form }
-, isLoading: false, successMsg: 'Income entry added successfully.' });
+      await submitIncomeData();
+      updateFormStatus('', 'Income entry added successfully.', false);
     } catch (error: any) {
-      console.error('There was an error saving the income entry: ', error.message);
-      setFormStatus({ ...form }
-, isLoading: false, errorMsg: 'Failed to save the income entry. Please try again.' });
+      console.error('Error saving the income: ', error.message);
+      updateFormStatus('Failed to save the income entry. Please try again.', '', false);
     }
+  };
+
+  const submitIncomeData = () => {
+    return axios.post(`${process.env.REACT_APP_BACKEND_URL}/addIncome`, incomeData);
+  }
+
+  const updateFormStatus = (errorMsg: string, successMsg: string, isLoading: boolean) => {
+    setFormStatus({ isLoading, errorMsg, successMsg });
   };
 
   return (
