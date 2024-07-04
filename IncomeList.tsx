@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from './store';
-import { fetchIncomeEntries, deleteIncome, updateIncome } from './incomeSlice'; 
+import { fetchIncomeEntries, deleteIncome, updateIncome } from './incomeSlice';
 
 interface IncomeEntry {
   id: string;
@@ -19,6 +19,10 @@ interface EditFormData {
   date: string;
 }
 
+const logAction = (message: string) => {
+  console.log(message);
+};
+
 const IncomeList: React.FC<IncomeListProps> = () => {
   const dispatch = useDispatch();
   const incomeEntries = useSelector((state: RootState) => state.income.entries);
@@ -26,35 +30,45 @@ const IncomeList: React.FC<IncomeListProps> = () => {
 
   useEffect(() => {
     dispatch(fetchIncomeEntries());
+    logAction('Fetching income entries...');
   }, [dispatch]);
 
   const handleDelete = (id: string) => {
     dispatch(deleteIncome(id));
+    logAction(`Deleting income entry with ID: ${id}`);
   };
 
   const startEdit = (entry: IncomeEntry) => {
     setEditForm({ ...entry });
+    logAction(`Starting to edit income entry with ID: ${entry.id}`);
   };
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>, field: keyof EditFormData) => {
-    setEditForm(prev => ({
-      ...prev,
-      [field]: e.target.value,
-    } as EditFormData));
+    setEditForm(prev => {
+      const updatedForm = { ...prev, [field]: e.target.value } as EditFormData;
+      return updatedForm;
+    });
+    logAction(`Editing field: ${field}`);
   };
 
   const submitEdit = () => {
     if (editForm) {
-      dispatch(updateIncome(editForm)); 
+      dispatch(updateIncome(editForm));
+      logAction(`Submitted edit for income entry with ID: ${editForm.id}`);
       setEditForm(null);
     }
+  };
+
+  const cancelEdit = () => {
+    logAction('Edit canceled.');
+    setEditForm(null);
   };
 
   return (
     <div>
       {incomeEntries.length > 0 ? (
         <ul>
-          {incomeEntries.map((entry: IncomeTEntry) => (
+          {incomeEntries.map((entry: IncomeEntry) => (
             <li key={entry.id}>
               {editForm && editForm.id === entry.id ? (
                 <div>
@@ -74,7 +88,7 @@ const IncomeList: React.FC<IncomeListProps> = () => {
                     onChange={e => handleEditChange(e, 'date')}
                   />
                   <button onClick={submitEdit}>Save</button>
-                  <button onClick={() => setEditMediaPlan(null)}>Cancel</button>
+                  <button onClick={cancelPublic Edit}>Cancel</button>
                 </div>
               ) : (
                 <>
