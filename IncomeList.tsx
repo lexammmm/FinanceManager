@@ -27,6 +27,7 @@ const IncomeList: React.FC<IncomeListProps> = () => {
   const dispatch = useDispatch();
   const incomeEntries = useSelector((state: RootState) => state.income.entries);
   const [editForm, setEditForm] = useState<EditFormData | null>(null);
+  const [minimumAmountFilter, setMinimumAmountFilter] = useState<number>(0);
 
   useEffect(() => {
     dispatch(fetchIncomeEntries());
@@ -45,16 +46,16 @@ const IncomeList: React.FC<IncomeListProps> = () => {
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>, field: keyof EditFormData) => {
     setEditForm(prev => {
-      const updatedForm = { ...prev, [field]: e.target.value } as EditFormData;
+      const updatedForm = { ...prev, [field]: e.target.type === 'number' ? parseInt(e.target.value) : e.target.value } as EditFormData;
       return updatedForm;
     });
     logAction(`Editing field: ${field}`);
   };
 
   const submitEdit = () => {
-    if (editForm) {
+    if(editForm) {
       dispatch(updateIncome(editForm));
-      logAction(`Submitted edit for income entry with ID: ${editForm.id}`);
+      logOperation(`Submitted edit for income entry with ID: ${editForm.id}`);
       setEditForm(null);
     }
   };
@@ -63,12 +64,24 @@ const IncomeList: React.FC<IncomeListProps> = () => {
     logAction('Edit canceled.');
     setEditForm(null);
   };
+  
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMinimumAmountFilter(parseInt(e.target.value));
+  };
+  
+  const filteredIncomeEntries = incomeEntries.filter(entry => entry.amount >= minimumAmountFilter);
 
   return (
     <div>
-      {incomeEntries.length > 0 ? (
+      <input
+        type="number"
+        value={minimumAmountFilter}
+        onChange={handleFilterChange}
+        placeholder="Minimum Amount"
+      />
+      {filteredIncomeEntries.length > 0 ? (
         <ul>
-          {incomeEntries.map((entry: IncomeEntry) => (
+          {filteredIncomeEntries.map((entry: IncomeEntry) => (
             <li key={entry.id}>
               {editForm && editForm.id === entry.id ? (
                 <div>
@@ -88,7 +101,7 @@ const IncomeList: React.FC<IncomeListProps> = () => {
                     onChange={e => handleEditChange(e, 'date')}
                   />
                   <button onClick={submitEdit}>Save</button>
-                  <button onClick={cancelPublic Edit}>Cancel</button>
+                  <button onClick={cancelEdit}>Cancel</button>
                 </div>
               ) : (
                 <>
