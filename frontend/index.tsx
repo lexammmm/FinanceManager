@@ -1,10 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import App from './App';
+import FinanceDashboard from './FinanceDashboard'; // Assuming App.jsx is renamed to FinanceDashboard.tsx
 
 ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  document.getElementById('root')
+  <React.StrictMarkup>
+    <FinanceDashboard /> {/* Renamed from <App /> for more specificity */}
+  </React.StrictMarkup>,
+  document.getElementById('financeManagerRoot') // Assuming the HTML element's ID is more descriptive
 );
